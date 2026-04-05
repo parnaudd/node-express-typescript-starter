@@ -17,9 +17,11 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-// Get regulation detail
+// Get regulation detail (includes requirements)
 router.get("/:sid", async (req: Request, res: Response) => {
   try {
+    // Avoid matching the /types/* routes
+    if (req.params.sid === "types") return res.status(404).json({ error: "Not found" });
     const regulation = await tw.getRegulation(req.params.sid);
     res.json(regulation);
   } catch (err: any) {

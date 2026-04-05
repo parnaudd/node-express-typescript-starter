@@ -53,6 +53,13 @@ export async function getEndUser(sid: string) {
   return client.numbers.v2.regulatoryCompliance.endUsers(sid).fetch();
 }
 
+export async function updateEndUser(
+  sid: string,
+  params: { friendlyName?: string; attributes?: Record<string, string> }
+) {
+  return client.numbers.v2.regulatoryCompliance.endUsers(sid).update(params);
+}
+
 export async function deleteEndUser(sid: string) {
   return client.numbers.v2.regulatoryCompliance.endUsers(sid).remove();
 }
@@ -76,6 +83,15 @@ export async function listSupportingDocuments() {
 
 export async function getSupportingDocument(sid: string) {
   return client.numbers.v2.regulatoryCompliance.supportingDocuments(sid).fetch();
+}
+
+export async function updateSupportingDocument(
+  sid: string,
+  params: { friendlyName?: string; attributes?: Record<string, string> }
+) {
+  return client.numbers.v2.regulatoryCompliance
+    .supportingDocuments(sid)
+    .update(params);
 }
 
 export async function deleteSupportingDocument(sid: string) {

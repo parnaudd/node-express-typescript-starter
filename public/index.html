@@ -4,48 +4,82 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Twilio Compliance POC</title>
-  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #333; padding: 20px; max-width: 1200px; margin: 0 auto; }
-    h1 { margin-bottom: 8px; }
-    h2 { margin: 20px 0 10px; border-bottom: 2px solid #e63946; padding-bottom: 4px; }
-    h3 { margin: 12px 0 6px; }
+    h1 { margin-bottom: 4px; }
+    h3 { margin: 14px 0 6px; }
     .subtitle { color: #666; margin-bottom: 20px; }
-    .tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
-    .tab { padding: 8px 16px; border: 1px solid #ccc; border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; background: #eee; }
-    .tab.active { background: #fff; font-weight: bold; border-bottom: 1px solid #fff; }
-    .panel { display: none; background: #fff; padding: 20px; border-radius: 0 8px 8px 8px; border: 1px solid #ccc; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 4px; margin-bottom: 0; flex-wrap: wrap; }
+    .tab { padding: 8px 16px; border: 1px solid #ccc; border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; background: #eee; font-size: 0.9em; }
+    .tab.active { background: #fff; font-weight: bold; }
+    .panel { display: none; background: #fff; padding: 20px; border: 1px solid #ccc; border-radius: 0 8px 8px 8px; }
     .panel.active { display: block; }
-    form { display: flex; flex-direction: column; gap: 8px; max-width: 500px; }
-    label { font-weight: 600; font-size: 0.9em; }
-    input, select, textarea { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95em; }
+
+    /* Workflow bar */
+    .workflow { display: flex; gap: 4px; margin: 16px 0; flex-wrap: wrap; }
+    .wstep { padding: 6px 14px; background: #eee; border-radius: 20px; font-size: 0.82em; transition: all 0.2s; }
+    .wstep.current { background: #e63946; color: #fff; }
+
+    /* Forms */
+    form { display: flex; flex-direction: column; gap: 8px; max-width: 600px; }
+    label { font-weight: 600; font-size: 0.88em; margin-top: 4px; }
+    input, select, textarea { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.92em; width: 100%; }
     textarea { min-height: 60px; font-family: monospace; }
-    button, .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .row > div { flex: 1; min-width: 140px; }
+
+    /* Buttons */
+    button, .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.88em; }
     .btn-primary { background: #e63946; color: #fff; }
     .btn-primary:hover { background: #c5303c; }
     .btn-secondary { background: #457b9d; color: #fff; }
     .btn-secondary:hover { background: #356a8a; }
     .btn-danger { background: #d62828; color: #fff; font-size: 0.8em; padding: 4px 8px; }
     .btn-success { background: #2a9d8f; color: #fff; }
+    .btn-success:hover { background: #1f8a7d; }
     .btn-sm { font-size: 0.8em; padding: 4px 10px; }
-    table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.9em; }
+    .btn-outline { background: transparent; border: 1px solid #457b9d; color: #457b9d; }
+    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.88em; }
     th, td { padding: 8px; text-align: left; border-bottom: 1px solid #eee; }
-    th { background: #f8f8f8; }
-    .status { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; font-weight: 600; }
+    th { background: #f8f8f8; font-size: 0.85em; }
+    td code { font-size: 0.8em; cursor: pointer; color: #457b9d; }
+    td code:hover { text-decoration: underline; }
+
+    /* Status badges */
+    .status { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.78em; font-weight: 600; }
     .status-draft { background: #ffeaa7; color: #6c5b00; }
     .status-pending-review { background: #74b9ff; color: #003366; }
-    .status-twilio-approved { background: #55efc4; color: #005533; }
-    .status-twilio-rejected { background: #fab1a0; color: #660000; }
-    #result { margin-top: 12px; padding: 12px; background: #f0f0f0; border-radius: 4px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; font-family: monospace; font-size: 0.85em; }
-    .row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
-    .row > * { flex: 1; min-width: 150px; }
-    .info { background: #e8f4fd; padding: 12px; border-radius: 4px; margin-bottom: 12px; font-size: 0.9em; border-left: 3px solid #457b9d; }
-    .workflow-steps { display: flex; gap: 4px; margin: 16px 0; flex-wrap: wrap; }
-    .step { padding: 6px 14px; background: #eee; border-radius: 20px; font-size: 0.85em; }
-    .step.current { background: #e63946; color: #fff; }
-    .hidden { display: none; }
-    .flex-gap { display: flex; gap: 8px; }
+    .status-twilio-approved, .status-approved { background: #55efc4; color: #005533; }
+    .status-twilio-rejected, .status-rejected { background: #fab1a0; color: #660000; }
+    .status-noncompliant { background: #fab1a0; color: #660000; }
+    .status-compliant { background: #55efc4; color: #005533; }
+    .status-expired { background: #dfe6e9; color: #636e72; }
+
+    /* Info box */
+    .info { background: #e8f4fd; padding: 12px; border-radius: 4px; margin-bottom: 14px; font-size: 0.88em; border-left: 3px solid #457b9d; line-height: 1.5; }
+    .warn { background: #fff3cd; border-left-color: #ffc107; }
+
+    /* Result panel */
+    #result { margin-top: 16px; padding: 12px; background: #1e1e1e; color: #d4d4d4; border-radius: 6px; max-height: 350px; overflow-y: auto; white-space: pre-wrap; font-family: monospace; font-size: 0.82em; display: none; }
+
+    /* Dynamic fields */
+    .dynamic-fields { background: #f9f9f9; padding: 12px; border-radius: 4px; border: 1px dashed #ccc; }
+    .dynamic-fields label { font-weight: normal; font-size: 0.85em; color: #555; }
+    .dynamic-fields input { margin-bottom: 4px; }
+    .field-required::after { content: " *"; color: #e63946; }
+
+    .loading { color: #999; font-style: italic; font-size: 0.85em; }
+    .error-msg { color: #e63946; font-size: 0.85em; margin-top: 4px; }
+    .success-msg { color: #2a9d8f; font-size: 0.85em; margin-top: 4px; }
+
+    .card { background: #f9f9f9; border: 1px solid #eee; border-radius: 6px; padding: 12px; margin: 8px 0; }
+    .card h4 { margin-bottom: 6px; font-size: 0.9em; }
   </style>
 </head>
 <body>
@@ -53,13 +87,13 @@
 <h1>Twilio Regulatory Compliance</h1>
 <p class="subtitle">POC - Workflow end-to-end</p>
 
-<div class="workflow-steps">
-  <div class="step" id="step-1">1. Regulations</div>
-  <div class="step" id="step-2">2. End-Users</div>
-  <div class="step" id="step-3">3. Documents</div>
-  <div class="step" id="step-4">4. Bundles</div>
-  <div class="step" id="step-5">5. Assign</div>
-  <div class="step" id="step-6">6. Evaluate & Submit</div>
+<div class="workflow">
+  <div class="wstep current" id="ws-1">1. Regulations</div>
+  <div class="wstep" id="ws-2">2. End-Users</div>
+  <div class="wstep" id="ws-3">3. Documents</div>
+  <div class="wstep" id="ws-4">4. Bundles</div>
+  <div class="wstep" id="ws-5">5. Assign</div>
+  <div class="wstep" id="ws-6">6. Evaluate & Submit</div>
 </div>
 
 <div class="tabs">
@@ -67,36 +101,28 @@
   <div class="tab" data-tab="endusers">End-Users</div>
   <div class="tab" data-tab="documents">Documents</div>
   <div class="tab" data-tab="bundles">Bundles</div>
-  <div class="tab" data-tab="assign">Assign Items</div>
+  <div class="tab" data-tab="assign">Assign</div>
   <div class="tab" data-tab="evaluate">Evaluate & Submit</div>
 </div>
 
-<!-- ═══ REGULATIONS ═══ -->
+<!-- ════════════ REGULATIONS ════════════ -->
 <div class="panel active" id="panel-regulations">
-  <div class="info">Query Twilio regulations for a specific country and number type to understand compliance requirements.</div>
+  <div class="info">
+    <strong>Step 1:</strong> Search regulations for a country to understand what end-users and documents are required.
+    Click a regulation SID to see its requirements.
+  </div>
 
-  <form id="form-regulations">
+  <form id="form-regulations" onsubmit="return searchRegulations(event)">
     <div class="row">
-      <div>
-        <label>ISO Country</label>
-        <input type="text" id="reg-country" placeholder="FR, US, GB..." value="FR">
-      </div>
-      <div>
-        <label>Number Type</label>
+      <div><label>ISO Country</label><input type="text" id="reg-country" value="FR" placeholder="FR, US, GB..."></div>
+      <div><label>Number Type</label>
         <select id="reg-number-type">
-          <option value="">All</option>
-          <option value="local">Local</option>
-          <option value="mobile">Mobile</option>
-          <option value="national">National</option>
-          <option value="toll-free">Toll-Free</option>
+          <option value="">All</option><option value="local">Local</option><option value="mobile">Mobile</option><option value="national">National</option><option value="toll-free">Toll-Free</option>
         </select>
       </div>
-      <div>
-        <label>End-User Type</label>
+      <div><label>End-User Type</label>
         <select id="reg-end-user-type">
-          <option value="">All</option>
-          <option value="individual">Individual</option>
-          <option value="business">Business</option>
+          <option value="">All</option><option value="individual">Individual</option><option value="business">Business</option>
         </select>
       </div>
     </div>
@@ -104,401 +130,614 @@
   </form>
 
   <div id="regulations-list"></div>
-  <div class="flex-gap" style="margin-top:10px;">
-    <button class="btn btn-secondary btn-sm" onclick="loadEndUserTypes()">View End-User Types</button>
-    <button class="btn btn-secondary btn-sm" onclick="loadDocumentTypes()">View Document Types</button>
-  </div>
-  <div id="types-result"></div>
+  <div id="regulation-detail"></div>
 </div>
 
-<!-- ═══ END-USERS ═══ -->
+<!-- ════════════ END-USERS ════════════ -->
 <div class="panel" id="panel-endusers">
-  <div class="info">Create end-users (individual or business) that will be assigned to bundles.</div>
+  <div class="info">
+    <strong>Step 2:</strong> Create end-users (individual or business). Select the type to see required fields from Twilio.
+  </div>
 
-  <form id="form-enduser">
+  <form id="form-enduser" onsubmit="return createEndUser(event)">
     <label>Friendly Name</label>
-    <input type="text" id="eu-name" placeholder="e.g. John Doe" required>
+    <input type="text" id="eu-name" placeholder="e.g. John Doe / Acme Corp" required>
     <label>Type</label>
-    <select id="eu-type">
-      <option value="individual">Individual</option>
-      <option value="business">Business</option>
+    <select id="eu-type" onchange="loadEndUserFields()">
+      <option value="">-- Loading types... --</option>
     </select>
-    <label>Attributes (JSON)</label>
-    <textarea id="eu-attributes" placeholder='{"first_name":"John","last_name":"Doe"}'>{}</textarea>
+    <div id="eu-dynamic-fields" class="dynamic-fields" style="display:none;"></div>
     <button type="submit" class="btn btn-primary">Create End-User</button>
   </form>
 
-  <h3>Existing End-Users</h3>
-  <button class="btn btn-secondary btn-sm" onclick="loadEndUsers()" style="margin-bottom:8px;">Refresh</button>
-  <div id="endusers-list"></div>
+  <h3>Existing End-Users <button class="btn btn-outline btn-sm" onclick="loadEndUsers()">Refresh</button></h3>
+  <div id="endusers-list"><p class="loading">Click Refresh to load...</p></div>
 </div>
 
-<!-- ═══ DOCUMENTS ═══ -->
+<!-- ════════════ DOCUMENTS ════════════ -->
 <div class="panel" id="panel-documents">
-  <div class="info">Create supporting documents (ID, proof of address, etc.) required by regulations.</div>
+  <div class="info">
+    <strong>Step 3:</strong> Create supporting documents. Select the document type to see required attributes.
+    <br>Formats accepted: JPEG, PNG, PDF (max 5MB).
+  </div>
 
-  <form id="form-document">
+  <form id="form-document" onsubmit="return createDocument(event)">
     <label>Friendly Name</label>
-    <input type="text" id="doc-name" placeholder="e.g. Passport John Doe" required>
-    <label>Type</label>
-    <input type="text" id="doc-type" placeholder="e.g. government_issued_document" required>
-    <label>Attributes (JSON)</label>
-    <textarea id="doc-attributes" placeholder='{"document_number":"ABC123"}'>{}</textarea>
+    <input type="text" id="doc-name" placeholder="e.g. Passport - John Doe" required>
+    <label>Document Type</label>
+    <select id="doc-type" onchange="loadDocumentFields()">
+      <option value="">-- Loading types... --</option>
+    </select>
+    <div id="doc-dynamic-fields" class="dynamic-fields" style="display:none;"></div>
     <button type="submit" class="btn btn-primary">Create Document</button>
   </form>
 
-  <h3>Existing Documents</h3>
-  <button class="btn btn-secondary btn-sm" onclick="loadDocuments()" style="margin-bottom:8px;">Refresh</button>
-  <div id="documents-list"></div>
+  <h3>Existing Documents <button class="btn btn-outline btn-sm" onclick="loadDocuments()">Refresh</button></h3>
+  <div id="documents-list"><p class="loading">Click Refresh to load...</p></div>
 </div>
 
-<!-- ═══ BUNDLES ═══ -->
+<!-- ════════════ BUNDLES ════════════ -->
 <div class="panel" id="panel-bundles">
-  <div class="info">Create a regulatory bundle — a container that groups end-users and documents for compliance review.</div>
+  <div class="info">
+    <strong>Step 4:</strong> Create a regulatory bundle — a container that groups end-users and documents for compliance review.
+  </div>
 
-  <form id="form-bundle">
+  <form id="form-bundle" onsubmit="return createBundle(event)">
     <label>Friendly Name</label>
     <input type="text" id="bun-name" placeholder="e.g. FR Local Bundle" required>
     <label>Email (for status updates)</label>
     <input type="email" id="bun-email" placeholder="you@example.com" required>
     <div class="row">
-      <div>
-        <label>ISO Country</label>
-        <input type="text" id="bun-country" value="FR" required>
-      </div>
-      <div>
-        <label>Number Type</label>
+      <div><label>ISO Country</label><input type="text" id="bun-country" value="FR" required></div>
+      <div><label>Number Type</label>
         <select id="bun-number-type">
-          <option value="">—</option>
-          <option value="local">Local</option>
-          <option value="mobile">Mobile</option>
-          <option value="national">National</option>
-          <option value="toll-free">Toll-Free</option>
+          <option value="">--</option><option value="local">Local</option><option value="mobile">Mobile</option><option value="national">National</option><option value="toll-free">Toll-Free</option>
         </select>
       </div>
-      <div>
-        <label>End-User Type</label>
+      <div><label>End-User Type</label>
         <select id="bun-end-user-type">
-          <option value="">—</option>
-          <option value="individual">Individual</option>
-          <option value="business">Business</option>
+          <option value="">--</option><option value="individual">Individual</option><option value="business">Business</option>
         </select>
       </div>
     </div>
-    <label>Regulation SID (optional)</label>
+    <label>Regulation SID (optional - from step 1)</label>
     <input type="text" id="bun-regulation-sid" placeholder="RNxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
     <button type="submit" class="btn btn-primary">Create Bundle</button>
   </form>
 
-  <h3>Existing Bundles</h3>
-  <button class="btn btn-secondary btn-sm" onclick="loadBundles()" style="margin-bottom:8px;">Refresh</button>
-  <div id="bundles-list"></div>
+  <h3>Existing Bundles <button class="btn btn-outline btn-sm" onclick="loadBundles()">Refresh</button></h3>
+  <div id="bundles-list"><p class="loading">Click Refresh to load...</p></div>
 </div>
 
-<!-- ═══ ASSIGN ═══ -->
+<!-- ════════════ ASSIGN ════════════ -->
 <div class="panel" id="panel-assign">
-  <div class="info">Assign end-users and supporting documents to a bundle.</div>
+  <div class="info">
+    <strong>Step 5:</strong> Assign end-users and supporting documents to a bundle. Select from your existing resources.
+  </div>
 
-  <form id="form-assign">
-    <label>Bundle SID</label>
-    <input type="text" id="assign-bundle-sid" placeholder="BUxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" required>
-    <label>Object SID (End-User or Document)</label>
-    <input type="text" id="assign-object-sid" placeholder="ITxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" required>
+  <form id="form-assign" onsubmit="return assignItem(event)">
+    <label>Bundle</label>
+    <select id="assign-bundle-sid" onchange="loadAssignmentsForSelected()">
+      <option value="">-- Select a bundle --</option>
+    </select>
+    <label>Item to assign</label>
+    <select id="assign-object-sid">
+      <option value="">-- Select end-user or document --</option>
+    </select>
     <button type="submit" class="btn btn-primary">Assign to Bundle</button>
   </form>
 
-  <h3>View Bundle Assignments</h3>
-  <div class="row" style="max-width:500px;">
-    <div>
-      <input type="text" id="view-assign-bundle" placeholder="Bundle SID">
-    </div>
-    <div>
-      <button class="btn btn-secondary" onclick="loadAssignments()">Load Assignments</button>
-    </div>
-  </div>
-  <div id="assignments-list"></div>
+  <h3>Current Assignments</h3>
+  <div id="assignments-list"><p class="loading">Select a bundle above...</p></div>
 </div>
 
-<!-- ═══ EVALUATE & SUBMIT ═══ -->
+<!-- ════════════ EVALUATE & SUBMIT ════════════ -->
 <div class="panel" id="panel-evaluate">
   <div class="info">
-    <strong>Evaluate</strong> checks your bundle against the regulation requirements.<br>
-    <strong>Submit</strong> sends the bundle for Twilio review (status → pending-review).
+    <strong>Step 6:</strong>
+    <strong>Evaluate</strong> checks your bundle against the regulation requirements (returns errors if incomplete).<br>
+    <strong>Submit</strong> sends it for Twilio review (status changes to <code>pending-review</code>).
   </div>
 
-  <label>Bundle SID</label>
-  <input type="text" id="eval-bundle-sid" placeholder="BUxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" style="max-width:500px;">
+  <label>Bundle</label>
+  <select id="eval-bundle-sid" style="max-width:600px;">
+    <option value="">-- Select a bundle --</option>
+  </select>
 
-  <div class="flex-gap" style="margin-top:10px;">
+  <div class="btn-group" style="margin-top:10px;">
     <button class="btn btn-secondary" onclick="evaluateBundle()">Evaluate</button>
     <button class="btn btn-success" onclick="submitBundle()">Submit for Review</button>
+    <button class="btn btn-outline btn-sm" onclick="refreshBundleStatus()">Refresh Status</button>
   </div>
 
   <div id="eval-result"></div>
 </div>
 
-<!-- ═══ GLOBAL RESULT ═══ -->
-<div id="result" class="hidden"></div>
+<!-- ════════════ RESULT PANEL ════════════ -->
+<div id="result"></div>
 
 <script>
-  // ─── Tab switching ──────────────────
-  const tabs = document.querySelectorAll('.tab');
-  const panels = document.querySelectorAll('.panel');
-  const steps = document.querySelectorAll('.step');
-  const tabMap = ['regulations','endusers','documents','bundles','assign','evaluate'];
+// ─── State ────────────────────────────
+let endUserTypesCache = [];
+let docTypesCache = [];
+let endUsersCache = [];
+let documentsCache = [];
+let bundlesCache = [];
 
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      const target = tab.dataset.tab;
-      tabs.forEach(t => t.classList.remove('active'));
-      panels.forEach(p => p.classList.remove('active'));
-      tab.classList.add('active');
-      document.getElementById('panel-' + target).classList.add('active');
-      // Highlight workflow step
-      const idx = tabMap.indexOf(target);
-      steps.forEach((s, i) => s.classList.toggle('current', i === idx));
+// ─── Init ─────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initEndUserTypes();
+  initDocTypes();
+});
+
+// ─── Tab switching ────────────────────
+const tabs = document.querySelectorAll('.tab');
+const panels = document.querySelectorAll('.panel');
+const wsteps = document.querySelectorAll('.wstep');
+const tabMap = ['regulations','endusers','documents','bundles','assign','evaluate'];
+
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    const target = tab.dataset.tab;
+    tabs.forEach(t => t.classList.remove('active'));
+    panels.forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + target).classList.add('active');
+    wsteps.forEach((s, i) => s.classList.toggle('current', i === tabMap.indexOf(target)));
+
+    // Auto-load data when switching tabs
+    if (target === 'endusers') loadEndUsers();
+    if (target === 'documents') loadDocuments();
+    if (target === 'bundles') loadBundles();
+    if (target === 'assign') refreshAssignDropdowns();
+    if (target === 'evaluate') refreshEvalDropdown();
+  });
+});
+
+// ─── Helpers ──────────────────────────
+function showResult(data) {
+  const el = document.getElementById('result');
+  el.style.display = 'block';
+  el.textContent = JSON.stringify(data, null, 2);
+}
+
+async function api(method, url, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  return res.json();
+}
+
+function statusBadge(status) {
+  return '<span class="status status-' + (status || 'draft') + '">' + (status || 'draft') + '</span>';
+}
+
+function copySid(sid) {
+  navigator.clipboard.writeText(sid);
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ─── REGULATIONS ──────────────────────
+async function searchRegulations(e) {
+  e.preventDefault();
+  const params = new URLSearchParams();
+  const c = document.getElementById('reg-country').value;
+  const nt = document.getElementById('reg-number-type').value;
+  const eu = document.getElementById('reg-end-user-type').value;
+  if (c) params.set('isoCountry', c);
+  if (nt) params.set('numberType', nt);
+  if (eu) params.set('endUserType', eu);
+
+  const data = await api('GET', '/api/regulations?' + params);
+  if (data.error) { showResult(data); return false; }
+
+  if (Array.isArray(data) && data.length > 0) {
+    let html = '<table><tr><th>SID</th><th>Name</th><th>Country</th><th>Number Type</th><th>End-User</th><th>Requirements</th></tr>';
+    data.forEach(r => {
+      html += '<tr>' +
+        '<td><code onclick="copySid(\'' + r.sid + '\')" title="Click to copy">' + r.sid + '</code></td>' +
+        '<td>' + escHtml(r.friendlyName) + '</td>' +
+        '<td>' + (r.isoCountry || '') + '</td>' +
+        '<td>' + (r.numberType || '') + '</td>' +
+        '<td>' + (r.endUserType || '') + '</td>' +
+        '<td><button class="btn btn-outline btn-sm" onclick="viewRegulation(\'' + r.sid + '\')">View</button></td>' +
+        '</tr>';
     });
+    html += '</table>';
+    document.getElementById('regulations-list').innerHTML = html;
+  } else {
+    document.getElementById('regulations-list').innerHTML = '<p>No regulations found.</p>';
+  }
+  document.getElementById('regulation-detail').innerHTML = '';
+  showResult(data);
+  return false;
+}
+
+async function viewRegulation(sid) {
+  const data = await api('GET', '/api/regulations/' + sid);
+  let html = '<div class="card"><h4>Regulation: ' + escHtml(data.friendlyName || sid) + '</h4>';
+
+  if (data.requirements) {
+    html += '<p style="margin:8px 0;font-size:0.85em;">Requirements for this regulation:</p>';
+    html += '<pre style="background:#f0f0f0;padding:10px;border-radius:4px;font-size:0.82em;max-height:300px;overflow:auto;">' + escHtml(JSON.stringify(data.requirements, null, 2)) + '</pre>';
+  } else {
+    html += '<pre style="background:#f0f0f0;padding:10px;border-radius:4px;font-size:0.82em;max-height:300px;overflow:auto;">' + escHtml(JSON.stringify(data, null, 2)) + '</pre>';
+  }
+  html += '</div>';
+  document.getElementById('regulation-detail').innerHTML = html;
+  showResult(data);
+}
+
+// ─── END-USER TYPES (dynamic) ─────────
+async function initEndUserTypes() {
+  try {
+    const types = await api('GET', '/api/regulations/types/end-users');
+    endUserTypesCache = types;
+    const sel = document.getElementById('eu-type');
+    sel.innerHTML = '<option value="">-- Select type --</option>';
+    types.forEach(t => {
+      sel.innerHTML += '<option value="' + t.machineName + '">' + escHtml(t.friendlyName) + ' (' + t.machineName + ')</option>';
+    });
+  } catch (e) {
+    document.getElementById('eu-type').innerHTML = '<option value="individual">Individual</option><option value="business">Business</option>';
+  }
+}
+
+function loadEndUserFields() {
+  const type = document.getElementById('eu-type').value;
+  const container = document.getElementById('eu-dynamic-fields');
+  if (!type) { container.style.display = 'none'; return; }
+
+  const typeInfo = endUserTypesCache.find(t => t.machineName === type);
+  if (!typeInfo || !typeInfo.fields || typeInfo.fields.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  let html = '<p style="font-size:0.82em;margin-bottom:8px;color:#666;">Fields for <strong>' + escHtml(typeInfo.friendlyName) + '</strong>:</p>';
+  typeInfo.fields.forEach(f => {
+    const req = f.required ? ' field-required' : '';
+    html += '<label class="' + req + '">' + escHtml(f.friendlyName || f.machineName) + '</label>';
+    html += '<input type="text" name="eu-attr-' + f.machineName + '" data-field="' + f.machineName + '" placeholder="' + (f.machineName) + '"' + (f.required ? ' required' : '') + '>';
+  });
+  container.innerHTML = html;
+  container.style.display = 'block';
+}
+
+async function createEndUser(e) {
+  e.preventDefault();
+  const attrs = {};
+  document.querySelectorAll('#eu-dynamic-fields input[data-field]').forEach(inp => {
+    if (inp.value) attrs[inp.dataset.field] = inp.value;
   });
 
-  // ─── Helpers ────────────────────────
-  function showResult(data) {
-    const el = document.getElementById('result');
-    el.classList.remove('hidden');
-    el.textContent = JSON.stringify(data, null, 2);
-  }
-
-  async function api(method, url, body) {
-    const opts = { method, headers: { 'Content-Type': 'application/json' } };
-    if (body) opts.body = JSON.stringify(body);
-    const res = await fetch(url, opts);
-    return res.json();
-  }
-
-  function statusBadge(status) {
-    return `<span class="status status-${status || 'draft'}">${status || 'draft'}</span>`;
-  }
-
-  // ─── Regulations ────────────────────
-  document.getElementById('form-regulations').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const params = new URLSearchParams();
-    const country = document.getElementById('reg-country').value;
-    const numberType = document.getElementById('reg-number-type').value;
-    const endUserType = document.getElementById('reg-end-user-type').value;
-    if (country) params.set('isoCountry', country);
-    if (numberType) params.set('numberType', numberType);
-    if (endUserType) params.set('endUserType', endUserType);
-
-    const data = await api('GET', '/api/regulations?' + params);
-    if (Array.isArray(data) && data.length > 0) {
-      let html = '<table><tr><th>SID</th><th>Name</th><th>Country</th><th>Number Type</th><th>End-User Type</th></tr>';
-      data.forEach(r => {
-        html += `<tr>
-          <td><code style="font-size:0.8em">${r.sid}</code></td>
-          <td>${r.friendlyName}</td>
-          <td>${r.isoCountry || ''}</td>
-          <td>${r.numberType || ''}</td>
-          <td>${r.endUserType || ''}</td>
-        </tr>`;
-      });
-      html += '</table>';
-      document.getElementById('regulations-list').innerHTML = html;
-    } else {
-      document.getElementById('regulations-list').innerHTML = '<p>No regulations found.</p>';
-    }
-    showResult(data);
+  const data = await api('POST', '/api/end-users', {
+    friendlyName: document.getElementById('eu-name').value,
+    type: document.getElementById('eu-type').value,
+    attributes: attrs,
   });
-
-  async function loadEndUserTypes() {
-    const data = await api('GET', '/api/regulations/types/end-users');
-    document.getElementById('types-result').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
-  }
-
-  async function loadDocumentTypes() {
-    const data = await api('GET', '/api/regulations/types/documents');
-    document.getElementById('types-result').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
-  }
-
-  // ─── End-Users ──────────────────────
-  document.getElementById('form-enduser').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    let attrs;
-    try { attrs = JSON.parse(document.getElementById('eu-attributes').value); }
-    catch { alert('Invalid JSON in attributes'); return; }
-
-    const data = await api('POST', '/api/end-users', {
-      friendlyName: document.getElementById('eu-name').value,
-      type: document.getElementById('eu-type').value,
-      attributes: attrs,
-    });
-    showResult(data);
+  showResult(data);
+  if (!data.error) {
+    document.getElementById('form-enduser').reset();
+    document.getElementById('eu-dynamic-fields').style.display = 'none';
     loadEndUsers();
-  });
-
-  async function loadEndUsers() {
-    const data = await api('GET', '/api/end-users');
-    if (Array.isArray(data) && data.length > 0) {
-      let html = '<table><tr><th>SID</th><th>Name</th><th>Type</th><th>Actions</th></tr>';
-      data.forEach(u => {
-        html += `<tr>
-          <td><code style="font-size:0.8em">${u.sid}</code></td>
-          <td>${u.friendlyName}</td>
-          <td>${u.type}</td>
-          <td><button class="btn btn-danger btn-sm" onclick="deleteEndUser('${u.sid}')">Delete</button></td>
-        </tr>`;
-      });
-      html += '</table>';
-      document.getElementById('endusers-list').innerHTML = html;
-    } else {
-      document.getElementById('endusers-list').innerHTML = '<p>No end-users found.</p>';
-    }
   }
+  return false;
+}
 
-  async function deleteEndUser(sid) {
-    if (!confirm('Delete this end-user?')) return;
-    await api('DELETE', '/api/end-users/' + sid);
-    loadEndUsers();
-  }
-
-  // ─── Documents ──────────────────────
-  document.getElementById('form-document').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    let attrs;
-    try { attrs = JSON.parse(document.getElementById('doc-attributes').value); }
-    catch { alert('Invalid JSON in attributes'); return; }
-
-    const data = await api('POST', '/api/documents', {
-      friendlyName: document.getElementById('doc-name').value,
-      type: document.getElementById('doc-type').value,
-      attributes: attrs,
+async function loadEndUsers() {
+  const data = await api('GET', '/api/end-users');
+  endUsersCache = Array.isArray(data) ? data : [];
+  if (endUsersCache.length > 0) {
+    let html = '<table><tr><th>SID</th><th>Name</th><th>Type</th><th>Attributes</th><th></th></tr>';
+    endUsersCache.forEach(u => {
+      const attrStr = u.attributes ? Object.entries(u.attributes).map(([k,v]) => k + ': ' + v).join(', ') : '';
+      html += '<tr>' +
+        '<td><code onclick="copySid(\'' + u.sid + '\')" title="Click to copy">' + u.sid + '</code></td>' +
+        '<td>' + escHtml(u.friendlyName) + '</td>' +
+        '<td>' + (u.type || '') + '</td>' +
+        '<td style="font-size:0.82em;">' + escHtml(attrStr) + '</td>' +
+        '<td><button class="btn btn-danger btn-sm" onclick="deleteEndUser(\'' + u.sid + '\')">Del</button></td>' +
+        '</tr>';
     });
-    showResult(data);
-    loadDocuments();
-  });
-
-  async function loadDocuments() {
-    const data = await api('GET', '/api/documents');
-    if (Array.isArray(data) && data.length > 0) {
-      let html = '<table><tr><th>SID</th><th>Name</th><th>Type</th><th>Actions</th></tr>';
-      data.forEach(d => {
-        html += `<tr>
-          <td><code style="font-size:0.8em">${d.sid}</code></td>
-          <td>${d.friendlyName}</td>
-          <td>${d.type}</td>
-          <td><button class="btn btn-danger btn-sm" onclick="deleteDocument('${d.sid}')">Delete</button></td>
-        </tr>`;
-      });
-      html += '</table>';
-      document.getElementById('documents-list').innerHTML = html;
-    } else {
-      document.getElementById('documents-list').innerHTML = '<p>No documents found.</p>';
-    }
+    html += '</table>';
+    document.getElementById('endusers-list').innerHTML = html;
+  } else {
+    document.getElementById('endusers-list').innerHTML = '<p>No end-users yet.</p>';
   }
+}
 
-  async function deleteDocument(sid) {
-    if (!confirm('Delete this document?')) return;
-    await api('DELETE', '/api/documents/' + sid);
-    loadDocuments();
-  }
+async function deleteEndUser(sid) {
+  if (!confirm('Delete this end-user?')) return;
+  await api('DELETE', '/api/end-users/' + sid);
+  loadEndUsers();
+}
 
-  // ─── Bundles ────────────────────────
-  document.getElementById('form-bundle').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const body = {
-      friendlyName: document.getElementById('bun-name').value,
-      email: document.getElementById('bun-email').value,
-      isoCountry: document.getElementById('bun-country').value,
-    };
-    const nt = document.getElementById('bun-number-type').value;
-    const eut = document.getElementById('bun-end-user-type').value;
-    const regSid = document.getElementById('bun-regulation-sid').value;
-    if (nt) body.numberType = nt;
-    if (eut) body.endUserType = eut;
-    if (regSid) body.regulationSid = regSid;
-
-    const data = await api('POST', '/api/bundles', body);
-    showResult(data);
-    loadBundles();
-  });
-
-  async function loadBundles() {
-    const data = await api('GET', '/api/bundles');
-    if (Array.isArray(data) && data.length > 0) {
-      let html = '<table><tr><th>SID</th><th>Name</th><th>Status</th><th>Country</th><th>Actions</th></tr>';
-      data.forEach(b => {
-        html += `<tr>
-          <td><code style="font-size:0.8em">${b.sid}</code></td>
-          <td>${b.friendlyName}</td>
-          <td>${statusBadge(b.status)}</td>
-          <td>${b.isoCountry || ''}</td>
-          <td><button class="btn btn-danger btn-sm" onclick="deleteBundle('${b.sid}')">Delete</button></td>
-        </tr>`;
-      });
-      html += '</table>';
-      document.getElementById('bundles-list').innerHTML = html;
-    } else {
-      document.getElementById('bundles-list').innerHTML = '<p>No bundles found.</p>';
-    }
-  }
-
-  async function deleteBundle(sid) {
-    if (!confirm('Delete this bundle?')) return;
-    await api('DELETE', '/api/bundles/' + sid);
-    loadBundles();
-  }
-
-  // ─── Assignments ────────────────────
-  document.getElementById('form-assign').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const data = await api('POST', '/api/bundles/' + document.getElementById('assign-bundle-sid').value + '/assign', {
-      objectSid: document.getElementById('assign-object-sid').value,
+// ─── DOCUMENT TYPES (dynamic) ─────────
+async function initDocTypes() {
+  try {
+    const types = await api('GET', '/api/regulations/types/documents');
+    docTypesCache = types;
+    const sel = document.getElementById('doc-type');
+    sel.innerHTML = '<option value="">-- Select type --</option>';
+    types.forEach(t => {
+      sel.innerHTML += '<option value="' + t.machineName + '">' + escHtml(t.friendlyName) + ' (' + t.machineName + ')</option>';
     });
-    showResult(data);
+  } catch (e) {
+    document.getElementById('doc-type').innerHTML = '<option value="">Enter type manually</option>';
+  }
+}
+
+function loadDocumentFields() {
+  const type = document.getElementById('doc-type').value;
+  const container = document.getElementById('doc-dynamic-fields');
+  if (!type) { container.style.display = 'none'; return; }
+
+  const typeInfo = docTypesCache.find(t => t.machineName === type);
+  if (!typeInfo || !typeInfo.fields || typeInfo.fields.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  let html = '<p style="font-size:0.82em;margin-bottom:8px;color:#666;">Fields for <strong>' + escHtml(typeInfo.friendlyName) + '</strong>:</p>';
+  typeInfo.fields.forEach(f => {
+    const req = f.required ? ' field-required' : '';
+    html += '<label class="' + req + '">' + escHtml(f.friendlyName || f.machineName) + '</label>';
+    html += '<input type="text" name="doc-attr-' + f.machineName + '" data-field="' + f.machineName + '" placeholder="' + (f.machineName) + '"' + (f.required ? ' required' : '') + '>';
+  });
+  container.innerHTML = html;
+  container.style.display = 'block';
+}
+
+async function createDocument(e) {
+  e.preventDefault();
+  const attrs = {};
+  document.querySelectorAll('#doc-dynamic-fields input[data-field]').forEach(inp => {
+    if (inp.value) attrs[inp.dataset.field] = inp.value;
   });
 
-  async function loadAssignments() {
-    const bundleSid = document.getElementById('view-assign-bundle').value;
-    if (!bundleSid) { alert('Enter a Bundle SID'); return; }
-    const data = await api('GET', '/api/bundles/' + bundleSid + '/assignments');
-    if (Array.isArray(data) && data.length > 0) {
-      let html = '<table><tr><th>Assignment SID</th><th>Object SID</th><th>Actions</th></tr>';
-      data.forEach(a => {
-        html += `<tr>
-          <td><code style="font-size:0.8em">${a.sid}</code></td>
-          <td><code style="font-size:0.8em">${a.objectSid}</code></td>
-          <td><button class="btn btn-danger btn-sm" onclick="removeAssignment('${bundleSid}','${a.sid}')">Remove</button></td>
-        </tr>`;
-      });
-      html += '</table>';
-      document.getElementById('assignments-list').innerHTML = html;
-    } else {
-      document.getElementById('assignments-list').innerHTML = '<p>No assignments found.</p>';
-    }
+  const data = await api('POST', '/api/documents', {
+    friendlyName: document.getElementById('doc-name').value,
+    type: document.getElementById('doc-type').value,
+    attributes: attrs,
+  });
+  showResult(data);
+  if (!data.error) {
+    document.getElementById('form-document').reset();
+    document.getElementById('doc-dynamic-fields').style.display = 'none';
+    loadDocuments();
   }
+  return false;
+}
 
-  async function removeAssignment(bundleSid, assignmentSid) {
-    if (!confirm('Remove this assignment?')) return;
-    await api('DELETE', '/api/bundles/' + bundleSid + '/assignments/' + assignmentSid);
-    loadAssignments();
+async function loadDocuments() {
+  const data = await api('GET', '/api/documents');
+  documentsCache = Array.isArray(data) ? data : [];
+  if (documentsCache.length > 0) {
+    let html = '<table><tr><th>SID</th><th>Name</th><th>Type</th><th>Status</th><th></th></tr>';
+    documentsCache.forEach(d => {
+      html += '<tr>' +
+        '<td><code onclick="copySid(\'' + d.sid + '\')" title="Click to copy">' + d.sid + '</code></td>' +
+        '<td>' + escHtml(d.friendlyName) + '</td>' +
+        '<td>' + (d.type || '') + '</td>' +
+        '<td>' + statusBadge(d.status) + '</td>' +
+        '<td><button class="btn btn-danger btn-sm" onclick="deleteDocument(\'' + d.sid + '\')">Del</button></td>' +
+        '</tr>';
+    });
+    html += '</table>';
+    document.getElementById('documents-list').innerHTML = html;
+  } else {
+    document.getElementById('documents-list').innerHTML = '<p>No documents yet.</p>';
   }
+}
 
-  // ─── Evaluate & Submit ──────────────
-  async function evaluateBundle() {
-    const sid = document.getElementById('eval-bundle-sid').value;
-    if (!sid) { alert('Enter a Bundle SID'); return; }
-    const data = await api('POST', '/api/bundles/' + sid + '/evaluate');
-    document.getElementById('eval-result').innerHTML = '<h3>Evaluation Result</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
-    showResult(data);
-  }
+async function deleteDocument(sid) {
+  if (!confirm('Delete this document?')) return;
+  await api('DELETE', '/api/documents/' + sid);
+  loadDocuments();
+}
 
-  async function submitBundle() {
-    const sid = document.getElementById('eval-bundle-sid').value;
-    if (!sid) { alert('Enter a Bundle SID'); return; }
-    if (!confirm('Submit this bundle for Twilio review? Status will change to pending-review.')) return;
-    const data = await api('POST', '/api/bundles/' + sid + '/submit');
-    document.getElementById('eval-result').innerHTML = '<h3>Submission Result</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
-    showResult(data);
+// ─── BUNDLES ──────────────────────────
+async function createBundle(e) {
+  e.preventDefault();
+  const body = {
+    friendlyName: document.getElementById('bun-name').value,
+    email: document.getElementById('bun-email').value,
+    isoCountry: document.getElementById('bun-country').value,
+  };
+  const nt = document.getElementById('bun-number-type').value;
+  const eut = document.getElementById('bun-end-user-type').value;
+  const regSid = document.getElementById('bun-regulation-sid').value;
+  if (nt) body.numberType = nt;
+  if (eut) body.endUserType = eut;
+  if (regSid) body.regulationSid = regSid;
+
+  const data = await api('POST', '/api/bundles', body);
+  showResult(data);
+  if (!data.error) loadBundles();
+  return false;
+}
+
+async function loadBundles() {
+  const data = await api('GET', '/api/bundles');
+  bundlesCache = Array.isArray(data) ? data : [];
+  if (bundlesCache.length > 0) {
+    let html = '<table><tr><th>SID</th><th>Name</th><th>Status</th><th>Country</th><th>Regulation</th><th></th></tr>';
+    bundlesCache.forEach(b => {
+      html += '<tr>' +
+        '<td><code onclick="copySid(\'' + b.sid + '\')" title="Click to copy">' + b.sid + '</code></td>' +
+        '<td>' + escHtml(b.friendlyName) + '</td>' +
+        '<td>' + statusBadge(b.status) + '</td>' +
+        '<td>' + (b.isoCountry || '') + '</td>' +
+        '<td><code style="font-size:0.75em;">' + (b.regulationSid || '-') + '</code></td>' +
+        '<td><button class="btn btn-danger btn-sm" onclick="deleteBundle(\'' + b.sid + '\')">Del</button></td>' +
+        '</tr>';
+    });
+    html += '</table>';
+    document.getElementById('bundles-list').innerHTML = html;
+  } else {
+    document.getElementById('bundles-list').innerHTML = '<p>No bundles yet.</p>';
   }
+}
+
+async function deleteBundle(sid) {
+  if (!confirm('Delete this bundle?')) return;
+  await api('DELETE', '/api/bundles/' + sid);
+  loadBundles();
+}
+
+// ─── ASSIGN ───────────────────────────
+async function refreshAssignDropdowns() {
+  // Load all resources in parallel
+  const [eu, docs, bun] = await Promise.all([
+    api('GET', '/api/end-users'),
+    api('GET', '/api/documents'),
+    api('GET', '/api/bundles'),
+  ]);
+  endUsersCache = Array.isArray(eu) ? eu : [];
+  documentsCache = Array.isArray(docs) ? docs : [];
+  bundlesCache = Array.isArray(bun) ? bun : [];
+
+  // Bundle dropdown
+  const bSel = document.getElementById('assign-bundle-sid');
+  bSel.innerHTML = '<option value="">-- Select a bundle --</option>';
+  bundlesCache.forEach(b => {
+    bSel.innerHTML += '<option value="' + b.sid + '">' + escHtml(b.friendlyName) + ' (' + b.status + ') - ' + b.sid.substring(0, 10) + '...</option>';
+  });
+
+  // Items dropdown (end-users + documents)
+  const oSel = document.getElementById('assign-object-sid');
+  oSel.innerHTML = '<option value="">-- Select end-user or document --</option>';
+  if (endUsersCache.length > 0) {
+    oSel.innerHTML += '<optgroup label="End-Users">';
+    endUsersCache.forEach(u => {
+      oSel.innerHTML += '<option value="' + u.sid + '">[EU] ' + escHtml(u.friendlyName) + ' (' + u.type + ')</option>';
+    });
+    oSel.innerHTML += '</optgroup>';
+  }
+  if (documentsCache.length > 0) {
+    oSel.innerHTML += '<optgroup label="Documents">';
+    documentsCache.forEach(d => {
+      oSel.innerHTML += '<option value="' + d.sid + '">[DOC] ' + escHtml(d.friendlyName) + ' (' + (d.type || '') + ')</option>';
+    });
+    oSel.innerHTML += '</optgroup>';
+  }
+}
+
+async function assignItem(e) {
+  e.preventDefault();
+  const bundleSid = document.getElementById('assign-bundle-sid').value;
+  const objectSid = document.getElementById('assign-object-sid').value;
+  if (!bundleSid || !objectSid) { alert('Select both a bundle and an item'); return false; }
+
+  const data = await api('POST', '/api/bundles/' + bundleSid + '/assign', { objectSid });
+  showResult(data);
+  if (!data.error) loadAssignmentsForSelected();
+  return false;
+}
+
+async function loadAssignmentsForSelected() {
+  const bundleSid = document.getElementById('assign-bundle-sid').value;
+  if (!bundleSid) {
+    document.getElementById('assignments-list').innerHTML = '<p class="loading">Select a bundle above...</p>';
+    return;
+  }
+  const data = await api('GET', '/api/bundles/' + bundleSid + '/assignments');
+  if (Array.isArray(data) && data.length > 0) {
+    let html = '<table><tr><th>Assignment SID</th><th>Object SID</th><th></th></tr>';
+    data.forEach(a => {
+      // Try to resolve the name
+      const eu = endUsersCache.find(u => u.sid === a.objectSid);
+      const doc = documentsCache.find(d => d.sid === a.objectSid);
+      const label = eu ? '[EU] ' + eu.friendlyName : doc ? '[DOC] ' + doc.friendlyName : a.objectSid;
+
+      html += '<tr>' +
+        '<td><code>' + a.sid + '</code></td>' +
+        '<td>' + escHtml(label) + '</td>' +
+        '<td><button class="btn btn-danger btn-sm" onclick="removeAssignment(\'' + bundleSid + '\',\'' + a.sid + '\')">Remove</button></td>' +
+        '</tr>';
+    });
+    html += '</table>';
+    document.getElementById('assignments-list').innerHTML = html;
+  } else {
+    document.getElementById('assignments-list').innerHTML = '<p>No assignments yet for this bundle.</p>';
+  }
+}
+
+async function removeAssignment(bundleSid, assignmentSid) {
+  if (!confirm('Remove this assignment?')) return;
+  await api('DELETE', '/api/bundles/' + bundleSid + '/assignments/' + assignmentSid);
+  loadAssignmentsForSelected();
+}
+
+// ─── EVALUATE & SUBMIT ────────────────
+async function refreshEvalDropdown() {
+  const bun = await api('GET', '/api/bundles');
+  bundlesCache = Array.isArray(bun) ? bun : [];
+  const sel = document.getElementById('eval-bundle-sid');
+  sel.innerHTML = '<option value="">-- Select a bundle --</option>';
+  bundlesCache.forEach(b => {
+    sel.innerHTML += '<option value="' + b.sid + '">' + escHtml(b.friendlyName) + ' [' + b.status + '] - ' + b.sid.substring(0, 10) + '...</option>';
+  });
+}
+
+async function evaluateBundle() {
+  const sid = document.getElementById('eval-bundle-sid').value;
+  if (!sid) { alert('Select a bundle'); return; }
+  const data = await api('POST', '/api/bundles/' + sid + '/evaluate');
+
+  let html = '<div class="card"><h4>Evaluation Result</h4>';
+  if (data.status) {
+    html += '<p>Status: ' + statusBadge(data.status) + '</p>';
+  }
+  if (data.results && Array.isArray(data.results)) {
+    html += '<table><tr><th>Field</th><th>Status</th><th>Message</th></tr>';
+    data.results.forEach(r => {
+      html += '<tr><td>' + escHtml(r.friendlyName || r.requirement_friendly_name || '-') + '</td>' +
+        '<td>' + statusBadge(r.valid ? 'compliant' : 'noncompliant') + '</td>' +
+        '<td style="font-size:0.82em;">' + escHtml(r.failureReason || r.failure_reason || '-') + '</td></tr>';
+    });
+    html += '</table>';
+  }
+  html += '<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:0.82em;">Raw JSON</summary>';
+  html += '<pre style="background:#f0f0f0;padding:8px;border-radius:4px;font-size:0.8em;max-height:200px;overflow:auto;">' + escHtml(JSON.stringify(data, null, 2)) + '</pre>';
+  html += '</details></div>';
+  document.getElementById('eval-result').innerHTML = html;
+  showResult(data);
+}
+
+async function submitBundle() {
+  const sid = document.getElementById('eval-bundle-sid').value;
+  if (!sid) { alert('Select a bundle'); return; }
+  if (!confirm('Submit this bundle for Twilio review? Status will change to pending-review.')) return;
+
+  const data = await api('POST', '/api/bundles/' + sid + '/submit');
+  let html = '<div class="card"><h4>Submission Result</h4>';
+  html += '<p>Status: ' + statusBadge(data.status) + '</p>';
+  html += '<pre style="background:#f0f0f0;padding:8px;border-radius:4px;font-size:0.8em;">' + escHtml(JSON.stringify(data, null, 2)) + '</pre>';
+  html += '</div>';
+  document.getElementById('eval-result').innerHTML = html;
+  showResult(data);
+  refreshEvalDropdown();
+}
+
+async function refreshBundleStatus() {
+  const sid = document.getElementById('eval-bundle-sid').value;
+  if (!sid) { alert('Select a bundle'); return; }
+  const data = await api('GET', '/api/bundles/' + sid);
+  let html = '<div class="card"><h4>Bundle Status</h4>';
+  html += '<p><strong>' + escHtml(data.friendlyName || '') + '</strong></p>';
+  html += '<p>Status: ' + statusBadge(data.status) + '</p>';
+  html += '<p style="font-size:0.82em;">Valid until: ' + (data.validUntil || 'N/A') + '</p>';
+  html += '</div>';
+  document.getElementById('eval-result').innerHTML = html;
+  showResult(data);
+}
 </script>
 </body>
 </html>

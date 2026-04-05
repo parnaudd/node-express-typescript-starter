@@ -13,6 +13,15 @@ router.get("/", async (_req: Request, res: Response) => {
   }
 });
 
+router.get("/:sid", async (req: Request, res: Response) => {
+  try {
+    const doc = await tw.getSupportingDocument(req.params.sid);
+    res.json(doc);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post("/", async (req: Request, res: Response) => {
   try {
     const { friendlyName, type, attributes } = req.body;
@@ -27,8 +36,26 @@ router.post("/", async (req: Request, res: Response) => {
       sid: doc.sid,
       friendlyName: doc.friendlyName,
       type: doc.type,
+      status: doc.status,
       createdAt: new Date().toISOString(),
     };
+    save(store);
+
+    res.json(doc);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put("/:sid", async (req: Request, res: Response) => {
+  try {
+    const { friendlyName, attributes } = req.body;
+    const doc = await tw.updateSupportingDocument(req.params.sid, { friendlyName, attributes });
+
+    const store = load();
+    if (store.documents[doc.sid]) {
+      store.documents[doc.sid].friendlyName = doc.friendlyName;
+    }
     save(store);
 
     res.json(doc);

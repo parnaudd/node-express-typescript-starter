@@ -13,6 +13,15 @@ router.get("/", async (_req: Request, res: Response) => {
   }
 });
 
+router.get("/:sid", async (req: Request, res: Response) => {
+  try {
+    const endUser = await tw.getEndUser(req.params.sid);
+    res.json(endUser);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post("/", async (req: Request, res: Response) => {
   try {
     const { friendlyName, type, attributes } = req.body;
@@ -22,7 +31,6 @@ router.post("/", async (req: Request, res: Response) => {
       attributes: attributes || {},
     });
 
-    // Save locally
     const store = load();
     store.endUsers[endUser.sid] = {
       sid: endUser.sid,
@@ -30,6 +38,23 @@ router.post("/", async (req: Request, res: Response) => {
       type: endUser.type,
       createdAt: new Date().toISOString(),
     };
+    save(store);
+
+    res.json(endUser);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put("/:sid", async (req: Request, res: Response) => {
+  try {
+    const { friendlyName, attributes } = req.body;
+    const endUser = await tw.updateEndUser(req.params.sid, { friendlyName, attributes });
+
+    const store = load();
+    if (store.endUsers[endUser.sid]) {
+      store.endUsers[endUser.sid].friendlyName = endUser.friendlyName;
+    }
     save(store);
 
     res.json(endUser);
