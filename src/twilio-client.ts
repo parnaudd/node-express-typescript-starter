@@ -94,6 +94,38 @@ export async function updateSupportingDocument(
     .update(params);
 }
 
+// Upload file to a supporting document via Twilio REST API (multipart)
+export async function uploadFileToDocument(
+  sid: string,
+  filePath: string,
+  attributes?: Record<string, string>
+) {
+  const fs = await import("fs");
+  const FormData = (await import("form-data")).default;
+
+  const form = new FormData();
+  form.append("File", fs.createReadStream(filePath));
+  if (attributes) {
+    form.append("Attributes", JSON.stringify(attributes));
+  }
+
+  const url = `https://numbers.twilio.com/v2/RegulatoryCompliance/SupportingDocuments/${sid}`;
+  const auth = Buffer.from(
+    `${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`
+  ).toString("base64");
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${auth}`,
+      ...form.getHeaders(),
+    },
+    body: form as any,
+  });
+
+  return response.json();
+}
+
 export async function deleteSupportingDocument(sid: string) {
   return client.numbers.v2.regulatoryCompliance.supportingDocuments(sid).remove();
 }

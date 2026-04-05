@@ -122,3 +122,4 @@ build
 .env
 *.log
 data/store.json
+uploads/

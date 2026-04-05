@@ -1,8 +1,33 @@
 import { Router, Request, Response } from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import * as tw from "../twilio-client";
 import { load, save } from "../store";
 
 const router = Router();
+
+// Configure multer for file uploads
+const uploadDir = path.join(__dirname, "..", "uploads");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["image/jpeg", "image/png", "application/pdf"];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only JPEG, PNG, and PDF files are allowed"));
+    }
+  },
+});
 
 router.get("/", async (_req: Request, res: Response) => {
   try {
@@ -22,14 +47,37 @@ router.get("/:sid", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/", async (req: Request, res: Response) => {
+// Create document with optional file upload
+router.post("/", upload.single("file"), async (req: Request, res: Response) => {
   try {
-    const { friendlyName, type, attributes } = req.body;
+    // Parse attributes from form data
+    let attributes: Record<string, string> = {};
+    if (req.body.attributes) {
+      try {
+        attributes = JSON.parse(req.body.attributes);
+      } catch {
+        attributes = req.body.attributes;
+      }
+    }
+
+    // Step 1: Create the document metadata
     const doc = await tw.createSupportingDocument({
-      friendlyName,
-      type,
-      attributes: attributes || {},
+      friendlyName: req.body.friendlyName,
+      type: req.body.type,
+      attributes,
     });
+
+    // Step 2: Upload file if provided
+    let uploadResult = null;
+    if (req.file) {
+      uploadResult = await tw.uploadFileToDocument(
+        doc.sid,
+        req.file.path,
+        attributes
+      );
+      // Clean up temp file
+      fs.unlinkSync(req.file.path);
+    }
 
     const store = load();
     store.documents[doc.sid] = {
@@ -37,12 +85,55 @@ router.post("/", async (req: Request, res: Response) => {
       friendlyName: doc.friendlyName,
       type: doc.type,
       status: doc.status,
+      hasFile: !!req.file,
       createdAt: new Date().toISOString(),
     };
     save(store);
 
-    res.json(doc);
+    res.json({
+      ...doc,
+      fileUploaded: !!req.file,
+      uploadResult,
+    });
   } catch (err: any) {
+    // Clean up temp file on error
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Upload file to existing document
+router.post("/:sid/upload", upload.single("file"), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file provided" });
+    }
+
+    let attributes: Record<string, string> | undefined;
+    if (req.body.attributes) {
+      try {
+        attributes = JSON.parse(req.body.attributes);
+      } catch {
+        attributes = undefined;
+      }
+    }
+
+    const result = await tw.uploadFileToDocument(
+      req.params.sid,
+      req.file.path,
+      attributes
+    );
+
+    // Clean up temp file
+    fs.unlinkSync(req.file.path);
+
+    res.json(result);
+  } catch (err: any) {
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
     res.status(500).json({ error: err.message });
   }
 });

@@ -157,11 +157,11 @@
 <!-- ════════════ DOCUMENTS ════════════ -->
 <div class="panel" id="panel-documents">
   <div class="info">
-    <strong>Step 3:</strong> Create supporting documents. Select the document type to see required attributes.
-    <br>Formats accepted: JPEG, PNG, PDF (max 5MB).
+    <strong>Step 3:</strong> Create supporting documents with file upload. Select the document type to see required attributes.
+    <br>Formats accepted: <strong>JPEG, PNG, PDF</strong> (max 5MB).
   </div>
 
-  <form id="form-document" onsubmit="return createDocument(event)">
+  <form id="form-document" onsubmit="return createDocument(event)" enctype="multipart/form-data">
     <label>Friendly Name</label>
     <input type="text" id="doc-name" placeholder="e.g. Passport - John Doe" required>
     <label>Document Type</label>
@@ -169,11 +169,26 @@
       <option value="">-- Loading types... --</option>
     </select>
     <div id="doc-dynamic-fields" class="dynamic-fields" style="display:none;"></div>
+    <label>File (JPEG, PNG, PDF - max 5MB)</label>
+    <input type="file" id="doc-file" accept=".jpg,.jpeg,.png,.pdf">
     <button type="submit" class="btn btn-primary">Create Document</button>
   </form>
 
   <h3>Existing Documents <button class="btn btn-outline btn-sm" onclick="loadDocuments()">Refresh</button></h3>
   <div id="documents-list"><p class="loading">Click Refresh to load...</p></div>
+
+  <div id="upload-to-existing" style="margin-top:16px;">
+    <h3>Upload file to existing document</h3>
+    <form id="form-upload-file" onsubmit="return uploadToExisting(event)" enctype="multipart/form-data" style="max-width:600px;">
+      <label>Document</label>
+      <select id="upload-doc-sid">
+        <option value="">-- Select a document --</option>
+      </select>
+      <label>File</label>
+      <input type="file" id="upload-file" accept=".jpg,.jpeg,.png,.pdf" required>
+      <button type="submit" class="btn btn-secondary">Upload File</button>
+    </form>
+  </div>
 </div>
 
 <!-- ════════════ BUNDLES ════════════ -->
@@ -501,11 +516,19 @@ async function createDocument(e) {
     if (inp.value) attrs[inp.dataset.field] = inp.value;
   });
 
-  const data = await api('POST', '/api/documents', {
-    friendlyName: document.getElementById('doc-name').value,
-    type: document.getElementById('doc-type').value,
-    attributes: attrs,
-  });
+  // Use FormData to support file upload
+  const formData = new FormData();
+  formData.append('friendlyName', document.getElementById('doc-name').value);
+  formData.append('type', document.getElementById('doc-type').value);
+  formData.append('attributes', JSON.stringify(attrs));
+
+  const fileInput = document.getElementById('doc-file');
+  if (fileInput.files.length > 0) {
+    formData.append('file', fileInput.files[0]);
+  }
+
+  const res = await fetch('/api/documents', { method: 'POST', body: formData });
+  const data = await res.json();
   showResult(data);
   if (!data.error) {
     document.getElementById('form-document').reset();
@@ -515,17 +538,49 @@ async function createDocument(e) {
   return false;
 }
 
+async function uploadToExisting(e) {
+  e.preventDefault();
+  const sid = document.getElementById('upload-doc-sid').value;
+  if (!sid) { alert('Select a document'); return false; }
+
+  const formData = new FormData();
+  const fileInput = document.getElementById('upload-file');
+  if (fileInput.files.length === 0) { alert('Select a file'); return false; }
+  formData.append('file', fileInput.files[0]);
+
+  const res = await fetch('/api/documents/' + sid + '/upload', { method: 'POST', body: formData });
+  const data = await res.json();
+  showResult(data);
+  if (!data.error) {
+    document.getElementById('form-upload-file').reset();
+    loadDocuments();
+  }
+  return false;
+}
+
 async function loadDocuments() {
   const data = await api('GET', '/api/documents');
   documentsCache = Array.isArray(data) ? data : [];
-  if (documentsCache.length > 0) {
-    let html = '<table><tr><th>SID</th><th>Name</th><th>Type</th><th>Status</th><th></th></tr>';
+
+  // Update the upload dropdown
+  const uploadSel = document.getElementById('upload-doc-sid');
+  if (uploadSel) {
+    uploadSel.innerHTML = '<option value="">-- Select a document --</option>';
     documentsCache.forEach(d => {
+      uploadSel.innerHTML += '<option value="' + d.sid + '">' + escHtml(d.friendlyName) + ' (' + (d.mimeType ? 'has file' : 'no file') + ')</option>';
+    });
+  }
+
+  if (documentsCache.length > 0) {
+    let html = '<table><tr><th>SID</th><th>Name</th><th>Type</th><th>Status</th><th>File</th><th></th></tr>';
+    documentsCache.forEach(d => {
+      const fileIcon = d.mimeType ? '<span style="color:green;" title="' + d.mimeType + '">Yes</span>' : '<span style="color:#999;">No</span>';
       html += '<tr>' +
         '<td><code onclick="copySid(\'' + d.sid + '\')" title="Click to copy">' + d.sid + '</code></td>' +
         '<td>' + escHtml(d.friendlyName) + '</td>' +
         '<td>' + (d.type || '') + '</td>' +
         '<td>' + statusBadge(d.status) + '</td>' +
+        '<td>' + fileIcon + '</td>' +
         '<td><button class="btn btn-danger btn-sm" onclick="deleteDocument(\'' + d.sid + '\')">Del</button></td>' +
         '</tr>';
     });
